@@ -1,4 +1,4 @@
-package com.hmdp.utils;
+package com.hmdp.utils.constant;
 
 public class VoucherOrderConstants {
     public static final Integer STATUS_UNPAID = 1;
