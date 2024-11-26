@@ -34,8 +34,14 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     @Override
     @Transactional
     public Result placeOrder(Long voucherId) {
+        if(voucherId == null){
+            return Result.fail("下单参数异常！");
+        }
         LocalDateTime now = LocalDateTime.now();
         SeckillVoucher voucher = seckillVoucherService.getById(voucherId);
+        if(voucher == null){
+            return Result.fail("下单参数异常！");
+        }
         if(now.isBefore(voucher.getBeginTime()) || now.isAfter(voucher.getEndTime())){
             return Result.fail("当前不在秒杀时段内！");
         }
@@ -46,9 +52,11 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         }
         boolean success = seckillVoucherService.update()
                 .setSql("stock = stock - 1")
-                .eq("voucher_id", voucherId).update();
+                .eq("voucher_id", voucherId)
+                .gt("stock", 0)
+                .update();
         if(!success){
-            return Result.fail("下单失败");
+            return Result.fail("当前已售罄！");
         }
 
         VoucherOrder voucherOrder = new VoucherOrder();
