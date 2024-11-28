@@ -8,13 +8,11 @@ import java.util.concurrent.TimeUnit;
 
 public class SimpleRedisLock implements ILock{
     private final StringRedisTemplate stringRedisTemplate;
-    private final String lockName;
 
     private final String lockKey;
 
     public SimpleRedisLock(StringRedisTemplate stringRedisTemplate, String lockName){
         this.stringRedisTemplate = stringRedisTemplate;
-        this.lockName = lockName;
         this.lockKey = RedisConstants.LOCK_KEY_PREFIX + lockName;
     }
 

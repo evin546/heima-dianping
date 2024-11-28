@@ -11,6 +11,7 @@ import com.hmdp.utils.RedisIdWorker;
 import com.hmdp.utils.UserHolder;
 import com.hmdp.utils.constant.VoucherOrderConstants;
 import com.hmdp.utils.lock.SimpleRedisLock;
+import com.hmdp.utils.lock.SimpleRedisLockV2;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -59,7 +60,8 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         }*/
 
         //创建锁对象
-        SimpleRedisLock simpleRedisLock = new SimpleRedisLock(stringRedisTemplate, userId.toString());
+        //SimpleRedisLock simpleRedisLock = new SimpleRedisLock(stringRedisTemplate,"order:" + userId.toString());
+        SimpleRedisLockV2 simpleRedisLock = new SimpleRedisLockV2(stringRedisTemplate,"order:" + userId.toString());
         //尝试获取锁:
         if(!simpleRedisLock.tryLock(5)){
             //获取锁失败
