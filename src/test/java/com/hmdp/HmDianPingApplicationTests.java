@@ -5,6 +5,8 @@ import com.hmdp.utils.RedisIdWorker;
 import org.apache.ibatis.javassist.bytecode.analysis.Executor;
 import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
@@ -14,6 +16,7 @@ import java.time.ZoneOffset;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 正式运行环境中指定了环境变量，测试环境也要指定
@@ -28,28 +31,18 @@ class HmDianPingApplicationTests {
     @Resource
     private RedisIdWorker redisIdWorker;
 
-    @Test
-    public void save2RedisTest() {
-        shopService.saveShop2Redis(1L, 30L);
-    }
+    @Resource
+    private RedissonClient redissonClient;
+
+
 
     @Test
-    public void nextIdTest() throws InterruptedException {
-        CountDownLatch countDownLatch = new CountDownLatch(300);
+    public void testRedisson() throws InterruptedException {
+        RLock lock = redissonClient.getLock("test:lock");
 
-        Runnable task = () -> {
-            for (int i = 0; i < 100; i++) {
-                System.out.println(redisIdWorker.nextId("test"));
-            }
-            countDownLatch.countDown();
-        };
-        long begin = System.currentTimeMillis();
-        for (int i = 0; i < 300; i++) {
-            es.submit(task);
-        }
-        countDownLatch.await();
-        long time = System.currentTimeMillis() - begin;
-        System.out.println(time);
+        System.out.println(lock.tryLock(1, 10, TimeUnit.SECONDS));
+
+
     }
 
 }

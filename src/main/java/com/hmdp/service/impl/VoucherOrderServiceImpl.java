@@ -9,16 +9,22 @@ import com.hmdp.service.IVoucherOrderService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.utils.RedisIdWorker;
 import com.hmdp.utils.UserHolder;
+import com.hmdp.utils.constant.RedisConstants;
 import com.hmdp.utils.constant.VoucherOrderConstants;
 import com.hmdp.utils.lock.SimpleRedisLock;
 import com.hmdp.utils.lock.SimpleRedisLockV2;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.aop.framework.AopContext;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
+import java.util.Collections;
 
 /**
  * <p>
@@ -38,6 +44,37 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     @Resource
     private StringRedisTemplate stringRedisTemplate;
 
+    @Resource
+    private RedissonClient redissonClient;
+
+    private static final DefaultRedisScript<Long> SECKILL_QUALIFICATION_CHECK;
+
+    static {
+        SECKILL_QUALIFICATION_CHECK = new DefaultRedisScript<>();
+        SECKILL_QUALIFICATION_CHECK.setLocation(new ClassPathResource("seckill_qualification_check.lua"));
+        SECKILL_QUALIFICATION_CHECK.setResultType(Long.class);
+    }
+
+    public Result placeVoucherOrder(Long voucherId) {
+        Long userId = UserHolder.getUser().getId();
+        Long orderId = redisIdWorker.nextId("order");
+
+        Long result = stringRedisTemplate.execute(
+                SECKILL_QUALIFICATION_CHECK,
+                Collections.emptyList(),
+                voucherId.toString(), userId.toString());
+        if(result == null){
+            return Result.fail("下单失败！");
+        }
+        long r = result.longValue();
+        if(r != 0L){
+            return Result.fail(r == 1L ? "当前已售罄！" : "不允许重复下单！");
+        }
+
+        return Result.ok(orderId);
+    }
+
+/*  改为使用Redis判断下单资格
     @Override
     public Result placeVoucherOrder(Long voucherId) {
         if(voucherId == null){
@@ -53,27 +90,32 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         }
         Long userId = UserHolder.getUser().getId();
 
-        /* 已替换成分布式锁
+        *//* 已替换成分布式锁
         synchronized (userId.toString().intern()){
             IVoucherOrderService voucherService = (VoucherOrderServiceImpl)AopContext.currentProxy();
             return voucherService.createVoucherOrder(voucherId, userId, voucher);
-        }*/
+        }*//*
 
         //创建锁对象
         //SimpleRedisLock simpleRedisLock = new SimpleRedisLock(stringRedisTemplate,"order:" + userId.toString());
-        SimpleRedisLockV2 simpleRedisLock = new SimpleRedisLockV2(stringRedisTemplate,"order:" + userId.toString());
+        //SimpleRedisLockV2 simpleRedisLock = new SimpleRedisLockV2(stringRedisTemplate,"order:" + userId.toString());
+
+        //使用Redisson：
         //尝试获取锁:
-        if(!simpleRedisLock.tryLock(5)){
+        RLock lock = redissonClient.getLock("lock:order:" + userId);
+        boolean isLock = lock.tryLock();
+
+        if(!isLock){
             //获取锁失败
             return Result.fail("不允许重复下单！");
         }
-
         try {
+            //获取代理对象，保证Spring事务生效
             IVoucherOrderService voucherService = (VoucherOrderServiceImpl)AopContext.currentProxy();
             return voucherService.createVoucherOrder(voucherId, userId, voucher);
         } finally {
             //释放锁
-            simpleRedisLock.unlock();
+            lock.unlock();
         }
 
 
@@ -113,5 +155,5 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         save(voucherOrder);
 
         return Result.ok(voucherOrder.getId());
-    }
+    }*/
 }
