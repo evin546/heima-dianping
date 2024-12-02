@@ -7,6 +7,8 @@
 local voucherId = ARGV[1]
 -- 用户id
 local userId = ARGV[2]
+--订单id
+local orderId = ARGV[3]
 
 -- 优惠券库存Key
 local stockKey = 'seckill:stock:' .. voucherId
@@ -26,5 +28,6 @@ end
 redis.call('incrby', stockKey, -1)
 -- 保存下单用户
 redis.call('sadd', orderKey, userId)
-
+-- 发送消息 这里订单id的key要设成id，便于后续BeanUtils将Map转化为VoucherOrder
+redis.call('XADD', 'stream.orders', '*', 'userId', userId, 'voucherId', voucherId, 'id', orderId);
 return 0
