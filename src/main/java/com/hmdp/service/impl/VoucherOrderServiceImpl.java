@@ -21,10 +21,16 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import sun.awt.AppContext;
 
+import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * <p>
@@ -55,6 +61,33 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         SECKILL_QUALIFICATION_CHECK.setResultType(Long.class);
     }
 
+    private static final ExecutorService SECKILL_ORDER_EXECUTOR = Executors.newSingleThreadExecutor();
+    private BlockingQueue<VoucherOrder> orderProcessingQueue = new ArrayBlockingQueue<VoucherOrder>(1024*1024);
+
+    private class SeckillOrderHandler implements Runnable{
+        @Override
+        @Transactional
+        public void run () {
+            while (true){
+                try {
+                    VoucherOrder voucherOrder = orderProcessingQueue.take();
+                    seckillVoucherService.update()
+                            .setSql("stock = stock - 1")
+                            .eq("voucher_id", voucherOrder.getVoucherId())
+                            .update();
+                    save(voucherOrder);
+                } catch (Exception e) {
+                    throw new RuntimeException("下单异常");
+                }
+            }
+        }
+    }
+
+    @PostConstruct
+    public void init(){
+        SECKILL_ORDER_EXECUTOR.submit(new SeckillOrderHandler());
+    }
+
     public Result placeVoucherOrder(Long voucherId) {
         Long userId = UserHolder.getUser().getId();
         Long orderId = redisIdWorker.nextId("order");
@@ -70,7 +103,13 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         if(r != 0L){
             return Result.fail(r == 1L ? "当前已售罄！" : "不允许重复下单！");
         }
-
+        VoucherOrder voucherOrder = new VoucherOrder();
+        voucherOrder.setId(orderId);
+        voucherOrder.setVoucherId(voucherId);
+        voucherOrder.setUserId(userId);
+        voucherOrder.setPayType(VoucherOrderConstants.STATUS_UNPAID);
+        //放入阻塞队列
+        orderProcessingQueue.add(voucherOrder);
         return Result.ok(orderId);
     }
 
