@@ -2,6 +2,7 @@ package com.hmdp.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.BooleanUtil;
+import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hmdp.dto.Result;
 import com.hmdp.dto.UserDTO;
@@ -111,7 +112,17 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         }
         List<Long> userIds = userIdsS.stream().map(Long::valueOf).collect(Collectors.toList());
 
+        /* bug：使用listByIds会破坏原来在SortedSet中的顺序：数据库查询结果未必按传入的ID顺序排列
         List<UserDTO> top5UserDTOs = userService.listByIds(userIds)
+                .stream()
+                .map(user -> BeanUtil.copyProperties(user, UserDTO.class))
+                .collect(Collectors.toList());*/
+        String idStr = StrUtil.join(",", userIds);
+        //通过 ORDER BY FIELD 来确保查询结果的顺序与传入的 ID 列表一致
+        List<UserDTO> top5UserDTOs = userService.query()
+                .in("id", userIds)
+                .last("ORDER BY FIELD(id," + idStr + ")")
+                .list()
                 .stream()
                 .map(user -> BeanUtil.copyProperties(user, UserDTO.class))
                 .collect(Collectors.toList());
