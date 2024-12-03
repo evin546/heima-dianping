@@ -23,4 +23,6 @@ public interface IBlogService extends IService<Blog> {
     Result getTop5LikedUsers(Long blogId);
 
     Result saveBlog(Blog blog);
+
+    Result queryBlogOfFollow(Long lastMinTimeStamp, Long offset);
 }

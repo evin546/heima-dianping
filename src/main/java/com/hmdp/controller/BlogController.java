@@ -85,4 +85,16 @@ public class BlogController {
         List<Blog> records = page.getRecords();
         return Result.ok(records);
     }
+
+    /**
+     * 滚动分页查询关注的博主发表的文章
+     * @param lastMinTimeStamp 上一次查到的最小时间戳
+     * @param offset 偏移量
+     * @return
+     */
+    @GetMapping("/of/follow")
+    public Result queryBlogOfFollow(@RequestParam("lastId") Long lastMinTimeStamp,
+                                    @RequestParam(value = "offset", defaultValue = "0") Long offset){
+        return blogService.queryBlogOfFollow(lastMinTimeStamp, offset);
+    }
 }
