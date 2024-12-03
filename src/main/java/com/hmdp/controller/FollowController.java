@@ -31,5 +31,14 @@ public class FollowController {
         return followService.getIsFollow(targetUserId);
     }
 
+    /**
+     * 获取当前登录用户与target用户共同关注的用户
+     * @return
+     */
+    @GetMapping("/common/{id}")
+    public Result getCommonFollowers(@PathVariable("id") Long targetUserId){
+        return followService.getCommonFollowers(targetUserId);
+    }
+
 
 }

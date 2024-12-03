@@ -24,4 +24,6 @@ public class RedisConstants {
 
     public static final String LOCK_KEY_PREFIX = "lock:";
 
+    public static final String FOLLOWERS_KEY_PREFIX = "followers:";
+
 }
