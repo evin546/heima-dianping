@@ -7,16 +7,20 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hmdp.dto.Result;
 import com.hmdp.dto.UserDTO;
 import com.hmdp.entity.Blog;
+import com.hmdp.entity.Follow;
 import com.hmdp.entity.User;
 import com.hmdp.mapper.BlogMapper;
 import com.hmdp.service.IBlogService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.hmdp.service.IFollowService;
 import com.hmdp.service.IUserService;
 import com.hmdp.utils.UserHolder;
 import com.hmdp.utils.constant.RedisConstants;
 import com.hmdp.utils.constant.SystemConstants;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import javax.annotation.Resource;
 import java.util.Collections;
@@ -37,6 +41,9 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
 
     @Resource
     private IUserService userService;
+
+    @Resource
+    private IFollowService followService;
 
     @Resource
     private StringRedisTemplate stringRedisTemplate;
@@ -130,6 +137,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         return Result.ok(top5UserDTOs);
     }
 
+
     /**
      * 获取当前登录用户对某博文的点赞状态
      * @param blogId
@@ -140,6 +148,47 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         Double score = stringRedisTemplate.opsForZSet().score(RedisConstants.BLOG_LIKED_KEY + blogId, userId.toString());
         return score != null;
     }
+
+
+    @Override
+    public Result saveBlog(Blog blog) {
+        // 获取登录用户
+        Long currentUserId = UserHolder.getUser().getId();
+        blog.setUserId(currentUserId);
+        // 保存探店博文
+        boolean isSuccess = save(blog);
+        if(!isSuccess){
+            return Result.fail("发布笔记失败！");
+        }
+
+        //推送博文信息给粉丝:
+        //获取推送时间
+        long blogPublishTime = System.currentTimeMillis();
+        List<Follow> followInfo = followService.query()
+                .eq("follow_user_id", currentUserId)
+                .list();
+
+        if(followInfo == null || followInfo.isEmpty()){
+            return Result.ok(blog.getId());
+        }
+
+        for(Follow follow: followInfo){
+            //获取关注者UserId
+            Long followerUserId = follow.getUserId();
+            //推送信息到“收件箱”
+            stringRedisTemplate.opsForZSet().add(
+                    RedisConstants.FEED_KEY + followerUserId,
+                    blog.getId().toString(),
+                    /*每循环一次重新获取时间，造成同一篇笔记的score不一致，不严谨，应统一
+                    System.currentTimeMillis()*/
+                    blogPublishTime
+            );
+
+        }
+        return Result.ok(blog.getId());
+    }
+
+
 
 
 }
