@@ -13,6 +13,7 @@ import com.hmdp.utils.UserHolder;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import javax.websocket.server.PathParam;
 import java.util.List;
 
 /**
@@ -29,8 +30,7 @@ public class BlogController {
 
     @Resource
     private IBlogService blogService;
-    @Resource
-    private IUserService userService;
+
 
     @PostMapping
     public Result saveBlog(@RequestBody Blog blog) {
@@ -44,11 +44,8 @@ public class BlogController {
     }
 
     @PutMapping("/like/{id}")
-    public Result likeBlog(@PathVariable("id") Long id) {
-        // 修改点赞数量
-        blogService.update()
-                .setSql("liked = liked + 1").eq("id", id).update();
-        return Result.ok();
+    public Result likeBlog(@PathVariable("id") Long blogId) {
+        return blogService.likeBlog(blogId);
     }
 
     @GetMapping("/of/me")
@@ -65,19 +62,21 @@ public class BlogController {
 
     @GetMapping("/hot")
     public Result queryHotBlog(@RequestParam(value = "current", defaultValue = "1") Integer current) {
-        // 根据用户查询
-        Page<Blog> page = blogService.query()
-                .orderByDesc("liked")
-                .page(new Page<>(current, SystemConstants.MAX_PAGE_SIZE));
-        // 获取当前页数据
-        List<Blog> records = page.getRecords();
-        // 查询用户
-        records.forEach(blog ->{
-            Long userId = blog.getUserId();
-            User user = userService.getById(userId);
-            blog.setName(user.getNickName());
-            blog.setIcon(user.getIcon());
-        });
-        return Result.ok(records);
+        return blogService.queryHotBlog(current);
+    }
+
+    @GetMapping("/{id}")
+    public Result getBlogDetail(@PathVariable("id") Long blogId){
+        return blogService.queryBlogById(blogId);
+    }
+
+    /**
+     * 获取前5个点赞的用户
+     * @param blogId
+     * @return
+     */
+    @GetMapping("/likes/{id}")
+    public Result getTop5LikedUsers(@PathVariable("id") Long blogId){
+        return blogService.getTop5LikedUsers(blogId);
     }
 }
