@@ -62,22 +62,21 @@ public class ShopController {
     }
 
     /**
-     * 根据商铺类型分页查询商铺信息
-     * @param typeId 商铺类型
-     * @param current 页码
+     * 根据店铺类型分页查询店铺信息
+     * @param typeId 店铺类型
+     * @param current （分页参数）当前页
+     * @param longitude （用户位置）经度，非必须
+     * @param latitude （用户位置）纬度，非必须
      * @return 商铺列表
      */
     @GetMapping("/of/type")
     public Result queryShopByType(
             @RequestParam("typeId") Integer typeId,
-            @RequestParam(value = "current", defaultValue = "1") Integer current
+            @RequestParam(value = "current", defaultValue = "1") Integer current,
+            @RequestParam(value = "x", required = false) Double longitude,
+            @RequestParam(value = "y", required = false) Double latitude
     ) {
-        // 根据类型分页查询
-        Page<Shop> page = shopService.query()
-                .eq("type_id", typeId)
-                .page(new Page<>(current, SystemConstants.DEFAULT_PAGE_SIZE));
-        // 返回数据
-        return Result.ok(page.getRecords());
+        return shopService.queryShopByType(typeId, current, latitude, longitude);
     }
 
     /**
