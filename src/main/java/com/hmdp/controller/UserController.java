@@ -97,4 +97,9 @@ public class UserController {
         // 返回
         return Result.ok(userDTO);
     }
+
+    @PostMapping("/sign")
+    public Result signIn(){
+        return userService.signIn();
+    }
 }

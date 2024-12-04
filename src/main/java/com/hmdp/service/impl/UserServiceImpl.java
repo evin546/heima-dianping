@@ -10,6 +10,7 @@ import com.hmdp.dto.UserDTO;
 import com.hmdp.entity.User;
 import com.hmdp.mapper.UserMapper;
 import com.hmdp.service.IUserService;
+import com.hmdp.utils.UserHolder;
 import com.hmdp.utils.constant.RedisConstants;
 import com.hmdp.utils.RegexUtils;
 import com.hmdp.utils.constant.SystemConstants;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Service;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpSession;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -113,6 +115,21 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         user.setNickName(SystemConstants.USER_NICK_NAME_PREFIX + RandomUtil.randomString(10));
         save(user);
         return user;
+    }
+
+    @Override
+    public Result signIn() {
+        //获取当前登录用户
+        Long currentUserId = UserHolder.getUser().getId();
+        //获取当天日期
+        LocalDateTime now = LocalDateTime.now();
+
+        String key = RedisConstants.USER_SIGN_KEY + currentUserId + now.format(DateTimeFormatter.ofPattern(":yyyyMM"));
+        //获取当天是当月的第几天
+        int dayOfMonth = now.getDayOfMonth();
+        //第n天的签到数据存在 n - 1索引上
+        stringRedisTemplate.opsForValue().setBit(key, (long)dayOfMonth - 1, true);
+        return Result.ok();
     }
 
 }
