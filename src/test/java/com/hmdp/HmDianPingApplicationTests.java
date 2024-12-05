@@ -32,50 +32,5 @@ import java.util.stream.Collectors;
  */
 @SpringBootTest
 class HmDianPingApplicationTests {
-    @Resource
-    private ShopServiceImpl shopService;
-
-    private ExecutorService es = Executors.newFixedThreadPool(500);
-
-    @Resource
-    private RedisIdWorker redisIdWorker;
-
-    @Resource
-    private RedissonClient redissonClient;
-
-    @Resource
-    private StringRedisTemplate stringRedisTemplate;
-
-
-
-    @Test
-    public void loadShopLocationData(){
-        List<Shop> list = shopService.list();
-
-        Map<Long, List<Shop>> collect = list.stream().collect(Collectors.groupingBy(Shop::getTypeId));
-
-        for (Map.Entry<Long, List<Shop>> entry: collect.entrySet()){
-            Long typeId = entry.getKey();
-            String redisKey = RedisConstants.SHOP_GEO_KEY + typeId;
-            List<RedisGeoCommands.GeoLocation<String>> locations = new ArrayList<>();
-            for(Shop shop : entry.getValue()) {
-                // 一条数据插入一次，发一次请求，效率低
-                // stringRedisTemplate.opsForGeo().add(redisKey, new Point(shop.getX(), shop.getY()), shop.getId().toString());
-                locations.add(new RedisGeoCommands.GeoLocation<String>(shop.getId().toString(), new Point(shop.getX(), shop.getY())));
-            }
-            stringRedisTemplate.opsForGeo().add(redisKey, locations);
-        }
-    }
-
-    @Test
-    public void saveShopToRedis(){
-        List<Shop> list = shopService.list();
-        for (Shop shop : list){
-            shopService.saveShop2Redis(shop.getId(), 3600L);
-        }
-
-
-
-    }
 
 }
